@@ -1,46 +1,16 @@
 const fs = require('fs')
 module.exports.decode = decode
-module.exports.debody = debody
-
 
 var types = {
 	0: readNumber,
 	1: readBool,
 	2: readString,
 	3: readObject,
-	5: readNull
+	5: readNull,
+    10: readStrictArray,
 }
 
-var gbuffer = Buffer.from([])
-var glength
-
-function decode(buffer) {
-	if(67 == buffer.readUInt8())
-	return debody(buffer.slice(8))
-}
-function decodeN(buffer) {
-	if( 67 == buffer.readUInt8()) {
-		glength = buffer.readUInt16BE(5)
-		gbuffer = buffer.slice(8)
-	} else {
-		if(!gbuffer.length) return false
-		gbuffer = Buffer.concat([gbuffer, buffer])
-	}
-
-
-	if(gbuffer.length < glength) {
-		return false
-	}
-
-	var nbuffer = gbuffer.slice(0, glength)
-	try {
-		return debody(nbuffer)
-	} catch (e) {
-		throw new Error(e)
-	}
-}
-
-function debody(body) {
+function decode(body) {
 	var t, f
 	var item
 	var u
@@ -94,7 +64,6 @@ function readObject(body)
 		var [prop, body] = readProperty(body)
 	}
 	return [obj, body]
-	
 }
 
 
@@ -113,11 +82,23 @@ function readProperty(body)
 
 	var obj = {key: key, value:value}
 	return [obj, body]
-
-
 }
 
 function readNull(body)
 {
 	return [null, body]
+}
+
+function readStrictArray(body)
+{
+    var size = body.readUInt16BE(2)
+    body = body.slice(4)
+    var ar = [];
+    for(var i = 0 ; i < size ; i++) {
+        var [t, body] = readType(body)
+        var [value, body] = t(body)
+        ar.push(value);
+    }
+
+    return [ar, body]
 }
